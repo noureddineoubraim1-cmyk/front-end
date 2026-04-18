@@ -6,9 +6,9 @@ import Hero from "../components/hero";
 function Login() {
     return (
         <>
-        <Header/>
+        <Header siteTitle="E-Wallet"/>
         <Hero/>
-        <Footer/>
+        <Footer annee={2026} nomSite="E-Wallet"/>
         
         </>
     )
