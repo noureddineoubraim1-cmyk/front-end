@@ -5,9 +5,9 @@ function Index() {
 
     return (
         <>
-            <Header />
-            <Hindex />
-            <Footer />
+            <Header siteTitle="E-Wallet"/>
+            <Hindex titre="E-wallet" description="Gérez vos finances facilement et en toute sécurité."/>
+            <Footer annee={2026} nomSite="E-Wallet"/>
         </>
     );
 }

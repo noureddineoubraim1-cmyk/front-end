@@ -1,8 +1,8 @@
-function Footer(){
+function Footer({annee, nomSite}){
     return (
         <footer>
-            <p>&copy; 2026 E-Wallet. Tous droits réservés.</p>
-         </footer>
+            <p>&copy; {annee} {nomSite}. Tous droits réservés.</p>
+        </footer>
     )
 
 
