@@ -9,42 +9,51 @@ import SummaryCards from "../components/summary-cards";
 import QuickActions from "../components/quick-actions";
 import RecentTransactions from "../components/recent-transactions";
 import TransferModal from "../components/transfer-modal";
+import ReloadModal from "../components/reload-modal";
+import RequestModal from "../components/request-modal";
 
 function Dashboard() {
-    const { currentUser, isAuthenticated, loading, refreshUser } = useAuth();
+    const { currentUser, isAuthenticated, loading, handleRequest } = useAuth();
     const navigate = useNavigate();
     const [activeSection, setActiveSection] = useState("overview");
     const [showTransferModal, setShowTransferModal] = useState(false);
-    const [userData, setUserData] = useState(currentUser);
+    const [showReloadModal, setShowReloadModal] = useState(false);
+    const [showRequestModal, setShowRequestModal] = useState(false);
 
     useEffect(() => {
-        
         if (!loading && !isAuthenticated) {
             navigate("/login");
         }
     }, [loading, isAuthenticated, navigate]);
 
+    // useEffect pour surveiller les nouvelles requêtes (pédagogique)
     useEffect(() => {
-        if (currentUser) {
-            setUserData(refreshUser() || currentUser);
+        const pendingRequests = currentUser?.requests?.filter(r => r.status === "pending") || [];
+        if (pendingRequests.length > 0) {
+            console.log(`Vous avez ${pendingRequests.length} demande(s) en attente`);
         }
-    }, [currentUser, refreshUser]);
+    }, [currentUser?.requests]);
 
-    if (loading) {
+    if (loading || !currentUser) {
         return <div style={{ textAlign: "center", padding: "50px" }}>Chargement...</div>;
     }
 
-    if (!userData) {
-        return null;
-    }
-
-    const wallet = userData.wallet;
+    const wallet = currentUser.wallet;
+    const pendingRequests = currentUser.requests?.filter(r => r.status === "pending") || [];
+    
     const totalIncome = wallet.transactions
         .filter(t => t.type === "credit")
-        .reduce((sum, t) => sum + t.amount, 0);
+        .reduce((sum, t) => sum + parseFloat(t.amount), 0);
     const totalExpenses = wallet.transactions
         .filter(t => t.type === "debit")
-        .reduce((sum, t) => sum + t.amount, 0);
+        .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+
+    const onHandleAction = (id, action) => {
+        const result = handleRequest(id, action);
+        if (!result.success && result.error) {
+            alert(result.error);
+        }
+    };
 
     return (
         <>
@@ -54,16 +63,25 @@ function Dashboard() {
                     <Sidebar activeSection={activeSection} setActiveSection={setActiveSection} />
                     <div className="dashboard-content">
                         <div className="section-header">
-                            <h2>Bonjour, {userData.name} !</h2>
-                            <p className="date-display">
-                                {new Date().toLocaleDateString("fr-FR", { 
-                                    weekday: 'long', 
-                                    year: 'numeric', 
-                                    month: 'long', 
-                                    day: 'numeric' 
-                                })}
-                            </p>
+                            <h2>Bonjour, {currentUser.name} !</h2>
+                            <p className="date-display">{new Date().toLocaleDateString()}</p>
                         </div>
+
+                        {/* Notification de demande d'argent */}
+                        {pendingRequests.length > 0 && (
+                            <div className="notifications-panel" style={{ background: "#fff5f5", borderLeft: "5px solid #ff4d4d", padding: "15px", marginBottom: "20px", borderRadius: "8px" }}>
+                                <h3 style={{ color: "#d32f2f", marginBottom: "10px" }}><i className="fas fa-bell"></i> Demandes d'argent en attente</h3>
+                                {pendingRequests.map(req => (
+                                    <div key={req.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px", borderBottom: "1px solid #eee" }}>
+                                        <span><strong>{req.fromName}</strong> vous demande <strong>{req.amount} MAD</strong> depuis votre carte ****{req.targetCardNum?.slice(-4)}</span>
+                                        <div>
+                                            <button className="btn btn-primary" onClick={() => onHandleAction(req.id, "accept")} style={{ padding: "5px 10px", marginRight: "5px" }}>Accepter</button>
+                                            <button className="btn btn-secondary" onClick={() => onHandleAction(req.id, "refuse")} style={{ padding: "5px 10px" }}>Refuser</button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
 
                         {activeSection === "overview" && (
                             <>
@@ -74,7 +92,11 @@ function Dashboard() {
                                     totalExpenses={totalExpenses}
                                     cardsCount={wallet.cards.length}
                                 />
-                                <QuickActions onTransfer={() => setShowTransferModal(true)} />
+                                <QuickActions 
+                                    onTransfer={() => setShowTransferModal(true)} 
+                                    onReload={() => setShowReloadModal(true)}
+                                    onRequest={() => setShowRequestModal(true)}
+                                />
                                 <RecentTransactions transactions={wallet.transactions} currency={wallet.currency} />
                             </>
                         )}
@@ -86,35 +108,15 @@ function Dashboard() {
                                         <div className={`card-preview ${card.type}`}>
                                             <div className="card-chip"></div>
                                             <div className="card-number">**** {card.numcards.slice(-4)}</div>
-                                            <div className="card-holder">{userData.name.toUpperCase()}</div>
+                                            <div className="card-holder">{currentUser.name.toUpperCase()}</div>
                                             <div className="card-expiry">{card.expiry}</div>
                                             <div className="card-type">{card.type.toUpperCase()}</div>
                                         </div>
-                                        <div className="card-actions">
-                                            <button className="card-action" title="Solde">
-                                                <i className="fas fa-chart-line"></i>
-                                            </button>
-                                            <button className="card-action" title="Geler">
-                                                <i className="fas fa-snowflake"></i>
-                                            </button>
-                                        </div>
                                         <div style={{ marginTop: "1rem", textAlign: "center" }}>
-                                            <strong>Solde: {parseFloat(card.balance).toFixed(2)} {wallet.currency}</strong>
+                                            <strong>Solde: {card.balance} {wallet.currency}</strong>
                                         </div>
                                     </div>
                                 ))}
-                            </div>
-                        )}
-
-                        {activeSection === "transfers" && (
-                            <div style={{ textAlign: "center", padding: "50px" }}>
-                                <button 
-                                    className="btn btn-primary" 
-                                    onClick={() => setShowTransferModal(true)}
-                                    style={{ padding: "15px 30px", fontSize: "1.1rem" }}
-                                >
-                                    <i className="fas fa-paper-plane"></i> Effectuer un transfert
-                                </button>
                             </div>
                         )}
                     </div>
@@ -122,17 +124,14 @@ function Dashboard() {
             </main>
             <Footer annee={2026} nomSite="E-Wallet" />
 
-            {showTransferModal && (
-                <TransferModal 
-                    onClose={() => setShowTransferModal(false)} 
-                    onSuccess={() => {
-                        setUserData(refreshUser() || currentUser);
-                        setShowTransferModal(false);
-                    }}
-                />
-            )}
+            {showTransferModal && <TransferModal onClose={() => setShowTransferModal(false)} onSuccess={() => setShowTransferModal(false)} />}
+            {showReloadModal && <ReloadModal onClose={() => setShowReloadModal(false)} onSuccess={() => setShowReloadModal(false)} />}
+            {showRequestModal && <RequestModal onClose={() => setShowRequestModal(false)} onSuccess={() => setShowRequestModal(false)} />}
         </>
     );
 }
 
 export default Dashboard;
+
+
+
