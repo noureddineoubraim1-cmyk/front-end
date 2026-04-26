@@ -1,5 +1,5 @@
 // src/components/hero.jsx
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -10,8 +10,17 @@ function Hero() {
     const [error, setError] = useState("");
     const { login } = useAuth();
     const navigate = useNavigate();
+    
+    // Utilisation de useRef et useEffect pour le focus automatique (pédagogique)
+    const emailInputRef = useRef(null);
+    useEffect(() => {
+        if (emailInputRef.current) {
+            emailInputRef.current.focus();
+        }
+    }, []);
 
-    const handleSubmit = async () => {
+    const handleSubmit = (e) => {
+        e.preventDefault(); // Empêcher le rechargement de la page
         if (!email || !password) {
             setError("Veuillez remplir tous les champs");
             return;
@@ -32,9 +41,10 @@ function Hero() {
                     <h1>Connexion</h1>
                     <p>Accédez à votre E-Wallet en toute sécurité.</p>
                     {error && <div style={{ color: "red", marginBottom: "1rem" }}>{error}</div>}
-                    <form className="login-form" onSubmit={(e) => e.preventDefault()}>
+                    <form className="login-form" onSubmit={handleSubmit}>
                         <div className="input-group">
                             <input 
+                                ref={emailInputRef}
                                 type="email" 
                                 placeholder="Adresse e-mail" 
                                 value={email} 
@@ -50,7 +60,7 @@ function Hero() {
                             />
                             <span className="toggle-password" onClick={() => setShowPassword(!showPassword)}>👁</span>
                         </div>
-                        <button type="button" className="btn btn-primary" onClick={handleSubmit}>
+                        <button type="submit" className="btn btn-primary">
                             Se connecter
                         </button>
                     </form>
@@ -67,4 +77,4 @@ function Hero() {
     );
 }
 
-export default Hero;
+export default Hero;
